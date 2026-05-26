@@ -1,5 +1,11 @@
 # Final Presentation Outline
 
+Companion files:
+
+- `slide_deck_draft.md`: slide-by-slide draft.
+- `live_demo_script.md`: exact live demo sequence.
+- `slide_asset_index.md`: where to find each presentation asset.
+
 ## 1. Why Learning Theory Matters
 
 Learning theory asks when performance on training data can justify confidence about unseen data.

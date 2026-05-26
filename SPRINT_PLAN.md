@@ -167,6 +167,25 @@ Verified:
 Build completed successfully (16 jobs).
 ```
 
+## Day 7 Status
+
+Day 7 is complete and Lean-verified.
+
+Completed:
+
+- Polished `MainTheorem.lean` as the main entry point.
+- Added a slide-by-slide deck draft.
+- Added a live demo script.
+- Added a slide asset index.
+- Linked the final presentation outline to the new assets.
+- Added `notes/day7_checkpoint.md`.
+
+Verified:
+
+```text
+Build completed successfully (16 jobs).
+```
+
 ## Daily Build Habit
 
 Run:
