@@ -186,6 +186,26 @@ Verified:
 Build completed successfully (16 jobs).
 ```
 
+## Day 8 Status
+
+Day 8 is complete and Lean-verified.
+
+Completed:
+
+- Updated the README to match the final repository.
+- Added final report materials.
+- Added a submission checklist.
+- Expanded the final MA-LoT workflow reflection.
+- Updated the AI prompt log.
+- Added `notes/day8_checkpoint.md`.
+- Ran the final build.
+
+Verified:
+
+```text
+Build completed successfully (16 jobs).
+```
+
 ## Daily Build Habit
 
 Run:

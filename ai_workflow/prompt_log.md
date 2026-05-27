@@ -15,3 +15,11 @@ Asked the AI assistant to implement the full project skeleton, including Lean fi
 ## Day 6 Agnostic Repair Prompt
 
 Asked the AI assistant to run the MA-LoT-inspired workflow on the agnostic theorem and record prompt, AI output, Lean error, diagnosis, repair, and final proof.
+
+## Day 7 Presentation Assembly Prompt
+
+Asked the AI assistant to assemble slide-ready presentation materials, a live demo script, and a main theorem summary.
+
+## Day 8 Freeze Prompt
+
+Asked the AI assistant to perform the final polish pass: update README, add final report materials, run the final build, and prepare the repo for submission.

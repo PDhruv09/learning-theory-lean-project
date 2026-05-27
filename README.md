@@ -50,14 +50,18 @@ LearningTheoryProject/
   AssumedResults.lean
   Realizable.lean
   Agnostic.lean
+  DemoExamples.lean
   MainTheorem.lean
 notes/
   math_overview.md
   proof_realizable.md
   proof_agnostic.md
   lean_translation_notes.md
+  day*_checkpoint.md
 malot_workflow/
+  README.md
   malot_overview.md
+  agnostic_repair_case_study.md
   proof_attempt_log.md
   verifier_feedback_log.md
   repair_iterations.md
@@ -70,18 +74,47 @@ presentation/
   paper_vs_lean_table.md
   visual_theorem_flow.md
   final_demo_examples.md
+  final_presentation_outline.md
+  slide_deck_draft.md
+  live_demo_script.md
+  slide_asset_index.md
 ai_workflow/
   CLAUDE.md
   AGENTS.md
   prompt_log.md
+final_report/
+  final_writeup.md
+  submission_checklist.md
 ```
 
 ## How to Build
 
-After Lean 4 and Lake are installed:
+This project was verified with Lean 4.29.1 and Lake 5.0.0.
+
+After Lean 4 and Lake are available:
 
 ```powershell
 lake build
 ```
 
-At the time this repository was scaffolded, `lean` and `lake` were not available on PATH in the local shell, so the first setup task is to install or expose the Lean toolchain.
+Expected result:
+
+```text
+Build completed successfully (16 jobs).
+```
+
+On this Windows machine, the VS Code extension was configured through a local Elan override named `local-lean-4.29.1`, backed by the Winget Lean installation. This avoided a Windows certificate revocation issue that blocked Elan downloads.
+
+## Main Lean Results
+
+- `realizable_learning_guarantee`: states the realizable finite-class guarantee using an explicit assumed concentration theorem.
+- `agnostic_erm_deterministic`: fully proves the deterministic agnostic ERM guarantee under uniform convergence.
+- `agnostic_high_probability_guarantee`: combines the assumed uniform-convergence theorem with the verified deterministic agnostic theorem.
+- `DemoExamples.lean`: contains small examples for the live presentation.
+
+## Presentation Entry Points
+
+- Start with `presentation/slide_deck_draft.md`.
+- Use `presentation/live_demo_script.md` for the live build and InfoView demonstration.
+- Use `presentation/annotated_proof_walkthrough.md` for the key agnostic proof explanation.
+- Use `malot_workflow/agnostic_repair_case_study.md` for the MA-LoT-inspired repair story.

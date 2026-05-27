@@ -16,3 +16,9 @@ The most common failures were not deep mathematical failures. They were translat
 - arithmetic steps needed exact expressions.
 
 This supports the project's research-communication layer. AI assistance helped produce candidate proof structure, Lean supplied reliable verification feedback, and human repair connected the two into an understandable proof.
+
+## Final Project Claim
+
+The project successfully formalizes the deterministic core of finite-class learning in Lean 4 while making the probability boundary explicit. The realizable and agnostic high-probability statements are represented through assumed concentration results, and the deterministic agnostic ERM theorem is fully verified.
+
+The MA-LoT-inspired layer adds a second contribution: it documents how AI-generated proof attempts can fail, how Lean exposes those failures, and how human repair turns them into verified and explainable proofs.
