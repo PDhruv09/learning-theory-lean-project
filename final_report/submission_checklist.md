@@ -28,7 +28,7 @@
 - [x] Final reflection exists.
 - [x] Multi-model workflow scaffold exists.
 - [x] Codex generated-proof artifacts exist.
-- [x] Claude handoff instructions exist.
+- [x] Claude reproduction instructions exist.
 - [x] Claude generated-proof artifacts replaced with actual Claude outputs.
 
 ## Presentation Materials

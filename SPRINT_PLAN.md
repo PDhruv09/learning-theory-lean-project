@@ -215,7 +215,7 @@ Completed:
 - Added blind theorem prompts.
 - Added Codex generated-proof artifacts.
 - Added Claude output placeholders.
-- Added `ai_workflow/CLAUDE_HANDOFF.md` with exact instructions for generating Claude artifacts.
+- Added Claude reproduction instructions in `ai_workflow/CLAUDE.md`.
 - Added multi-model workflow documents.
 - Added proof-refactoring documents.
 - Added proof pipeline and Codex-vs-Claude presentation artifacts.

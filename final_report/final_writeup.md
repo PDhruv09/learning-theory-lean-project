@@ -71,7 +71,7 @@ The repository now includes a full scaffold for the professor's multi-model work
 - blind theorem prompts,
 - Codex generated-proof artifacts,
 - Claude generated-proof placeholders,
-- Claude handoff instructions,
+- Claude reproduction instructions,
 - model-comparison tables,
 - reconciliation notes,
 - proof-refactoring logs.

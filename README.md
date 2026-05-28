@@ -142,12 +142,30 @@ On this Windows machine, the VS Code extension was configured through a local El
 - Use `malot_workflow/agnostic_repair_case_study.md` for the MA-LoT-inspired repair story.
 - Use `multi_model_workflow/consensus_pipeline.md` and `presentation/proof_pipeline_diagram.md` for the Codex-vs-Claude workflow.
 
-## Claude Code Handoff
+## How to Reproduce the MA-LoT-Inspired Workflow
 
-Claude Code artifacts are intentionally not fabricated. To run the Claude side, use:
+1. Start from the theorem prompts in `theorem_prompts/`.
+2. Generate proof attempts with Codex and Claude.
+3. Save raw outputs under `generated_proofs/codex/` and `generated_proofs/claude/`.
+4. Run Lean on each generated file:
 
-```text
-ai_workflow/CLAUDE_HANDOFF.md
+```powershell
+lake env lean generated_proofs/codex/agnostic_attempt_1.lean
+lake env lean generated_proofs/claude/agnostic_attempt_1.lean
 ```
 
-After Claude generates output, save it under `generated_proofs/claude/` and run the verification commands listed in that handoff file.
+5. Log verifier errors in `malot_workflow/verifier_feedback_log.md`.
+6. Repair failed attempts and save repaired files in `generated_proofs/`.
+7. Re-run Lean on repaired attempts.
+8. Run the comparison script:
+
+```powershell
+python multi_model_workflow/run_comparison.py
+```
+
+9. Inspect `multi_model_workflow/comparison_report.md`.
+10. Reconcile the final proof into the verified project files.
+11. Simplify only after verification, using `lake build` as the test suite.
+12. Explain the result using the notes and presentation artifacts.
+
+This is MA-LoT-inspired because generated proofs are not trusted directly. Lean verifier feedback drives repair, comparison, and simplification.
