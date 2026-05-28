@@ -40,3 +40,19 @@ repair loop                repair loop
 - Reconciliation: differences are logged before choosing the final proof.
 - Refactoring safety: simplifications are kept only if the verifier still passes.
 - Idempotence check: passing the verified proof through the simplifier should return an equivalent proof or a direct call to the verified theorem.
+
+## How Comparison Actually Happens
+
+The Markdown files are the human-readable record. The comparison itself is performed by:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File multi_model_workflow/run_comparison.ps1
+```
+
+The script runs Lean on each generated proof file, records compile success or failure, captures verifier errors, computes a SHA256 hash prefix, counts lines, detects proof-strategy features, and writes:
+
+```text
+multi_model_workflow/comparison_report.md
+```
+
+This means the project does not rely on a hand-written Markdown table alone. The table is backed by a repeatable verifier/comparison script.

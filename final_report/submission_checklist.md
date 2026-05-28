@@ -29,7 +29,7 @@
 - [x] Multi-model workflow scaffold exists.
 - [x] Codex generated-proof artifacts exist.
 - [x] Claude handoff instructions exist.
-- [ ] Claude generated-proof artifacts replaced with actual Claude outputs.
+- [x] Claude generated-proof artifacts replaced with actual Claude outputs.
 
 ## Presentation Materials
 
