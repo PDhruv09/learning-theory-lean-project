@@ -206,6 +206,26 @@ Verified:
 Build completed successfully (16 jobs).
 ```
 
+## Multi-LLM Extension Status
+
+Added after the original Day 8 freeze to reflect the expanded professor-inspired plan.
+
+Completed:
+
+- Added blind theorem prompts.
+- Added Codex generated-proof artifacts.
+- Added Claude output placeholders.
+- Added `ai_workflow/CLAUDE_HANDOFF.md` with exact instructions for generating Claude artifacts.
+- Added multi-model workflow documents.
+- Added proof-refactoring documents.
+- Added proof pipeline and Codex-vs-Claude presentation artifacts.
+
+Pending:
+
+- Replace Claude placeholder files with actual Claude Code outputs.
+- Verify Claude attempts with `lake env lean`.
+- Complete the Codex-vs-Claude comparison after Claude outputs exist.
+
 ## Daily Build Habit
 
 Run:

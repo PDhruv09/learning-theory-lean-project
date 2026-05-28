@@ -43,6 +43,20 @@ The project is now submission-ready as a Lean formalization and explainability s
 - MA-LoT-inspired repair logs,
 - presentation-ready explanation artifacts.
 
+## Expanded Multi-LLM Addendum
+
+After the original Day 8 freeze, the repository was extended with the professor-inspired multi-LLM workflow scaffold:
+
+- `theorem_prompts/`
+- `generated_proofs/`
+- `multi_model_workflow/`
+- `proof_refactoring/`
+- `presentation/proof_pipeline_diagram.md`
+- `presentation/codex_vs_claude_table.md`
+- `ai_workflow/CLAUDE_HANDOFF.md`
+
+Codex-side artifacts are present. Claude-side artifacts are placeholders until generated through Claude Code using the handoff instructions.
+
 ## Day 8 Verdict
 
 Day 8 is complete and Lean-verified.

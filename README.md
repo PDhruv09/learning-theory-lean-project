@@ -1,14 +1,14 @@
 # Formalizing Finite-Class Learning Guarantees in Lean 4
 
-**Full title:** Formalizing Finite-Class Learning Guarantees in Lean 4 with an MA-LoT-Inspired Proof Repair Workflow
+**Full title:** Formalizing Finite-Class Learning Guarantees in Lean 4 with MA-LoT-Inspired Multi-LLM Proof Repair
 
 This project formalizes learning guarantees for finite hypothesis classes in Lean 4. It covers the realizable setting, where a perfect classifier exists, and the agnostic setting, where empirical risk minimization competes with the best hypothesis in the class.
 
-The project also studies an MA-LoT-inspired proof repair workflow:
+The project also studies an MA-LoT-inspired multi-LLM proof repair workflow:
 
 ```text
-paper proof -> Lean theorem statement -> AI proof attempt -> Lean verifier feedback
--> repair iteration -> verified theorem -> human-readable explanation
+English theorem prompt -> Codex proof + Claude proof -> Lean verifier feedback
+-> repair iteration -> reconciliation -> simplification -> human-readable explanation
 ```
 
 The central communication theme is:
@@ -40,6 +40,8 @@ Lean checks whether a proof is correct. The notes and presentation artifacts exp
 - Which parts of the proof are verified by Lean, and which parts are assumed?
 - Where did AI-generated proofs fail?
 - What repairs were needed?
+- How do Codex and Claude differ when generating Lean proofs from the same theorem prompt?
+- Can verified proofs be simplified safely after `lake build` acts as a test suite?
 - How does human-readable explanation add understanding beyond formal verification?
 
 ## Repository Structure
@@ -52,6 +54,23 @@ LearningTheoryProject/
   Agnostic.lean
   DemoExamples.lean
   MainTheorem.lean
+theorem_prompts/
+  agnostic_erm_theorem.md
+  realizable_theorem.md
+  simplification_prompt.md
+generated_proofs/
+  codex/
+  claude/
+multi_model_workflow/
+  blind_generation_results.md
+  codex_vs_claude_comparison.md
+  reconciliation_notes.md
+  semantic_difference_cases.md
+  consensus_pipeline.md
+proof_refactoring/
+  bloated_vs_simplified.md
+  verified_refactors.md
+  failed_simplifications.md
 notes/
   math_overview.md
   proof_realizable.md
@@ -69,10 +88,13 @@ malot_workflow/
   pattern_analysis.md
   final_reflection.md
 presentation/
+  final_story.md
   annotated_proof_walkthrough.md
   proof_dependency_graph.md
+  proof_pipeline_diagram.md
   paper_vs_lean_table.md
   visual_theorem_flow.md
+  codex_vs_claude_table.md
   final_demo_examples.md
   final_presentation_outline.md
   slide_deck_draft.md
@@ -118,3 +140,14 @@ On this Windows machine, the VS Code extension was configured through a local El
 - Use `presentation/live_demo_script.md` for the live build and InfoView demonstration.
 - Use `presentation/annotated_proof_walkthrough.md` for the key agnostic proof explanation.
 - Use `malot_workflow/agnostic_repair_case_study.md` for the MA-LoT-inspired repair story.
+- Use `multi_model_workflow/consensus_pipeline.md` and `presentation/proof_pipeline_diagram.md` for the Codex-vs-Claude workflow.
+
+## Claude Code Handoff
+
+Claude Code artifacts are intentionally not fabricated. To run the Claude side, use:
+
+```text
+ai_workflow/CLAUDE_HANDOFF.md
+```
+
+After Claude generates output, save it under `generated_proofs/claude/` and run the verification commands listed in that handoff file.

@@ -2,13 +2,13 @@
 
 ## Project Title
 
-Formalizing Finite-Class Learning Guarantees in Lean 4 with an MA-LoT-Inspired Proof Repair Workflow
+Formalizing Finite-Class Learning Guarantees in Lean 4 with MA-LoT-Inspired Multi-LLM Proof Repair
 
 ## Summary
 
 This project formalizes finite hypothesis class learning guarantees in Lean 4. It covers the realizable setting, where a perfect hypothesis exists, and the agnostic setting, where empirical risk minimization competes with the best hypothesis in the class.
 
-The project also studies an MA-LoT-inspired workflow for AI-assisted theorem proving. The workflow records how informal proofs and AI-generated Lean attempts are checked by Lean, repaired after compiler feedback, and translated into human-readable explanations.
+The project also studies an MA-LoT-inspired workflow for AI-assisted theorem proving. The workflow records how informal proofs and AI-generated Lean attempts are checked by Lean, repaired after compiler feedback, compared across models, simplified after verification, and translated into human-readable explanations.
 
 ## Mathematical Content
 
@@ -63,6 +63,20 @@ paper proof
 ```
 
 The main case study is the agnostic ERM theorem. The initial AI-style proof failed because it treated uniform convergence as one inequality, tried to use ERM after adding `epsilon` to both sides, and relied on unavailable arithmetic automation. The repaired proof introduced named intermediate facts and a readable `calc` chain.
+
+## Multi-LLM Extension
+
+The repository now includes a full scaffold for the professor's multi-model workflow:
+
+- blind theorem prompts,
+- Codex generated-proof artifacts,
+- Claude generated-proof placeholders,
+- Claude handoff instructions,
+- model-comparison tables,
+- reconciliation notes,
+- proof-refactoring logs.
+
+Claude outputs are intentionally marked pending until generated through Claude Code and verified with Lean. This avoids fabricating model comparisons while preserving the full experimental design.
 
 ## Verification vs Understanding
 

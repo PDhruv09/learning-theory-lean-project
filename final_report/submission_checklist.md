@@ -26,6 +26,10 @@
 - [x] Pattern analysis exists.
 - [x] Agnostic repair case study exists.
 - [x] Final reflection exists.
+- [x] Multi-model workflow scaffold exists.
+- [x] Codex generated-proof artifacts exist.
+- [x] Claude handoff instructions exist.
+- [ ] Claude generated-proof artifacts replaced with actual Claude outputs.
 
 ## Presentation Materials
 
@@ -37,6 +41,8 @@
 - [x] Visual theorem flow exists.
 - [x] Final demo examples exist.
 - [x] Slide asset index exists.
+- [x] Proof pipeline diagram exists.
+- [x] Codex-vs-Claude table exists.
 
 ## GitHub
 
