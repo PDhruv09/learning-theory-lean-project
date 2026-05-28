@@ -27,7 +27,7 @@ The key research idea is that Lean acts as the verifier for both generation and 
 The comparison is not only a Markdown table. It is backed by:
 
 ```text
-multi_model_workflow/run_comparison.ps1
+multi_model_workflow/run_comparison.py
 ```
 
 which produces:
