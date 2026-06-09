@@ -136,11 +136,14 @@ On this Windows machine, the VS Code extension was configured through a local El
 
 ## Presentation Entry Points
 
-- Start with `presentation/slide_deck_draft.md`.
+- Use `presentation/final_slides.pptx` for the actual presentation deck.
+- Use `presentation/speaker_notes.md` for the talk track.
 - Use `presentation/live_demo_script.md` for the live build and InfoView demonstration.
 - Use `presentation/annotated_proof_walkthrough.md` for the key agnostic proof explanation.
 - Use `malot_workflow/agnostic_repair_case_study.md` for the MA-LoT-inspired repair story.
 - Use `multi_model_workflow/consensus_pipeline.md` and `presentation/proof_pipeline_diagram.md` for the Codex-vs-Claude workflow.
+
+Older planning files such as `presentation/slide_deck_draft.md` are retained as development artifacts, but the final submission deck is `presentation/final_slides.pptx`.
 
 ## How to Reproduce the MA-LoT-Inspired Workflow
 

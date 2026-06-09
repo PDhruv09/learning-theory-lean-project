@@ -1,0 +1,1210 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage{array}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue
+}
+
+\title{Formalizing Finite-Class Learning Guarantees in Lean 4\\
+with an MA-LoT-Inspired Multi-LLM Proof Repair Workflow}
+\author{Dhruv}
+\date{}
+
+\newcommand{\Hclass}{\mathcal{H}}
+\newcommand{\Ddist}{\mathcal{D}}
+\newcommand{\Xspace}{\mathcal{X}}
+\newcommand{\Yspace}{\mathcal{Y}}
+\newcommand{\LD}{L_{\Ddist}}
+\newcommand{\LS}{L_S}
+\newcommand{\hh}{\widehat{h}}
+\newcommand{\hstar}{h^\star}
+\newcommand{\eps}{\epsilon}
+\newcommand{\ind}{\mathbf{1}}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{remark}{Remark}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This project formalizes finite hypothesis class learning guarantees in Lean 4
+and studies an MA-LoT-inspired workflow for repairing AI-generated Lean proofs.
+The mathematical topic is empirical risk minimization for finite hypothesis
+classes in the realizable and agnostic settings. The strongest fully verified
+Lean result is the deterministic agnostic ERM theorem: under uniform
+convergence, ERM competes with a comparator hypothesis up to an additive
+$2\eps$ term. The realizable and high-probability agnostic guarantees are
+represented using explicit assumed concentration results rather than by
+formalizing probability theory from scratch.
+
+The workflow contribution documents how Codex and Claude generate proof
+attempts from a shared theorem prompt, how Lean verifier feedback exposes
+errors, how repair iterations fix those errors, and how comparison across
+models produces both human-facing explanations and model-facing repair
+instructions.
+\end{abstract}
+
+\tableofcontents
+
+\section{Reader's Guide}
+
+This report is organized around the three requirements in the final project
+instructions.
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Formalized proof.} The Lean code is in
+  \texttt{LearningTheoryProject/}. The main fully proved theorem is
+  \texttt{agnostic\_erm\_deterministic} in
+  \texttt{LearningTheoryProject/Agnostic.lean}. Probability concentration
+  results are stated explicitly as assumptions in
+  \texttt{LearningTheoryProject/AssumedResults.lean}.
+  \item \textbf{Designed proof presentation.} The mathematical proof is
+  explained in this report, especially in the realizable and agnostic proof
+  sections. Additional reader-facing materials are in \texttt{notes/} and
+  \texttt{presentation/}, including an annotated proof walkthrough, dependency
+  graph, paper-versus-Lean table, and final slide deck.
+  \item \textbf{AI workflow.} The MA-LoT-inspired workflow is documented in
+  \texttt{ai\_workflow/}, \texttt{malot\_workflow/},
+  \texttt{multi\_model\_workflow/}, \texttt{generated\_proofs/}, and
+  \texttt{proof\_refactoring/}. These files record prompts, generated proof
+  attempts, Lean verifier feedback, repair iterations, comparison reports, and
+  reflection.
+\end{enumerate}
+
+The most important formalization boundary is this: the deterministic agnostic
+ERM theorem is fully proved in Lean, while probability concentration results
+such as Hoeffding-style uniform convergence are stated as explicit assumptions.
+
+\section{Main Result Summary}
+
+\begin{center}
+\begin{tabular}{p{0.27\textwidth}p{0.34\textwidth}p{0.29\textwidth}}
+\toprule
+\textbf{Result} & \textbf{Mathematical meaning} & \textbf{Lean status} \\
+\midrule
+Realizable guarantee
+& Consistent hypotheses have small true risk with high probability.
+& Wrapper theorem using an assumed concentration result. \\
+\addlinespace
+Agnostic deterministic theorem
+& Under uniform convergence, ERM is within $2\eps$ of a comparator.
+& Fully proved in Lean. \\
+\addlinespace
+Agnostic high-probability guarantee
+& ERM is close to the best hypothesis in the class with high probability.
+& Uses assumed uniform convergence plus the verified deterministic theorem. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Assumptions and Scope at a Glance}
+
+The project deliberately separates mathematical assumptions, Lean assumptions,
+and implementation choices.
+
+\subsection{Mathematical Assumptions}
+
+\begin{itemize}[leftmargin=*]
+  \item The hypothesis class $\Hclass$ is finite.
+  \item Training examples are drawn independently from an unknown distribution
+  $\Ddist$.
+  \item In the realizable setting, there exists $\hstar\in\Hclass$ such that
+  $\LD(\hstar)=0$.
+  \item In the agnostic setting, no perfect classifier is assumed. The learner is
+  compared with a best-in-class hypothesis $\hstar$.
+  \item The agnostic deterministic theorem assumes uniform convergence: empirical
+  risk and true risk are within $\eps$ for every hypothesis in the class.
+\end{itemize}
+
+\subsection{Assumptions Represented Explicitly in Lean}
+
+The file \texttt{LearningTheoryProject/AssumedResults.lean} contains the
+probability-facing assumptions. The key assumed interfaces are:
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{HighProbabilityEvent}: an abstract marker for ``with probability
+  at least $1-\delta$.''
+  \item \texttt{highProbability\_mono}: an assumed monotonicity principle for
+  high-probability events.
+  \item \texttt{finiteClass\_realizable\_concentration}: the assumed
+  finite-class concentration result for the realizable setting.
+  \item \texttt{finiteClass\_agnostic\_uniform\_convergence}: the assumed
+  finite-class uniform convergence result for the agnostic setting.
+\end{itemize}
+
+\subsection{Implementation Scope Choices}
+
+\begin{itemize}[leftmargin=*]
+  \item Risks are represented as abstract \texttt{Nat}-valued quantities in Lean.
+  This keeps the deterministic order proof lightweight.
+  \item The usual logarithmic sample complexity rates are proved and explained
+  mathematically in this report, but the Lean code represents the sample-size
+  requirements through abstract sample-condition predicates.
+  \item The project does not formalize measure theory, probability spaces,
+  Hoeffding's inequality, or the finite-class union bound from first principles.
+  \item The project is MA-LoT-inspired. It does not implement the full MA-LoT
+  system.
+\end{itemize}
+
+\section{Project Overview}
+
+The project has two connected goals.
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Lean formalization goal.} Formalize the structure of finite
+  hypothesis class learning guarantees in Lean 4. The project covers the
+  realizable setting and the agnostic setting, while keeping probability-heavy
+  concentration facts explicit as assumptions.
+  \item \textbf{Proof workflow goal.} Study an MA-LoT-inspired proof repair
+  workflow in which AI-generated Lean proofs are checked by Lean, repaired from
+  verifier feedback, compared across models, simplified only after verification,
+  and translated into human-readable explanations.
+\end{enumerate}
+
+The central communication theme is:
+
+\begin{quote}
+Verification is not the same as understanding.
+\end{quote}
+
+Lean can verify that a proof term is correct. It does not automatically explain
+why the theorem matters, what informal assumptions were hidden in the paper
+proof, or why an AI-generated proof failed. The repository therefore includes
+both machine-checkable Lean code and human-readable proof artifacts.
+
+\section{Motivation: Why Assumptions Matter}
+
+No Free Lunch-style results say that learning is impossible without assumptions.
+If every possible labeling function is allowed, then no learning algorithm is
+universally better than another. This does not contradict finite-class learning
+guarantees. Instead, it explains why assumptions are necessary.
+
+This project studies a classical positive result after adding a concrete
+assumption:
+
+\begin{quote}
+The hypothesis class $\Hclass$ is finite.
+\end{quote}
+
+Finiteness makes learning possible in the standard proof because it allows a
+union bound over all hypotheses. In the realizable case, the proof rules out bad
+hypotheses that nevertheless fit the sample. In the agnostic case, the proof
+uses uniform convergence to relate empirical risk to true risk for every
+hypothesis in the class.
+
+\section{Mathematical Setup}
+
+\subsection{Binary Classification}
+
+Let $\Xspace$ be an input space and let $\Yspace=\{0,1\}$ be the label space. A
+hypothesis is a classifier
+\[
+  h : \Xspace \to \Yspace.
+\]
+
+The hypothesis class is finite:
+\[
+  \Hclass = \{h_1,h_2,\ldots,h_N\}.
+\]
+
+A data point is
+\[
+  z=(x,y),
+\]
+where $x\in\Xspace$ and $y\in\Yspace$. The data distribution is an unknown
+distribution $\Ddist$ over $\Xspace\times\Yspace$.
+
+A training sample is
+\[
+  S=(z_1,z_2,\ldots,z_m),
+\]
+where each $z_i=(x_i,y_i)$ is drawn independently from $\Ddist$.
+
+\subsection{True Risk and Empirical Risk}
+
+\begin{definition}[True risk]
+For a hypothesis $h$, the true risk is
+\[
+  \LD(h) = \Pr_{(x,y)\sim\Ddist}[h(x)\ne y].
+\]
+This is the error probability on a fresh random example from the data
+distribution.
+\end{definition}
+
+\begin{definition}[Empirical risk]
+For a hypothesis $h$ and sample $S$, the empirical risk is
+\[
+  \LS(h) =
+  \frac{1}{m}\sum_{i=1}^{m}\ind[h(x_i)\ne y_i].
+\]
+This is the fraction of training examples that $h$ classifies incorrectly.
+\end{definition}
+
+\begin{definition}[Empirical risk minimization]
+An empirical risk minimizer is a hypothesis
+\[
+  \hh \in \arg\min_{h\in\Hclass}\LS(h).
+\]
+Equivalently,
+\[
+  \forall h\in\Hclass,\quad \LS(\hh)\le \LS(h).
+\]
+\end{definition}
+
+\section{Realizable Setting}
+
+\subsection{Assumption}
+
+The realizable setting assumes that the hypothesis class contains a perfect
+classifier:
+\[
+  \exists \hstar\in\Hclass
+  \quad\text{such that}\quad
+  \LD(\hstar)=0.
+\]
+
+In words, at least one hypothesis in the class makes no mistakes under the true
+data distribution.
+
+\subsection{Consistency of ERM}
+
+If $\LD(\hstar)=0$, then with probability one $\hstar$ makes no mistakes on the
+training sample. Therefore
+\[
+  \LS(\hstar)=0.
+\]
+
+Since $\hh$ is an empirical risk minimizer,
+\[
+  \LS(\hh)\le \LS(\hstar)=0.
+\]
+
+Empirical risk is nonnegative, so
+\[
+  \LS(\hh)=0.
+\]
+
+Thus, in the realizable setting, ERM returns a hypothesis that is consistent
+with the sample.
+
+\subsection{Bad Hypotheses}
+
+Fix an accuracy parameter $\eps>0$. Define the set of bad hypotheses:
+\[
+  B = \{h\in\Hclass : \LD(h)>\eps\}.
+\]
+
+If ERM fails to return a good hypothesis, then $\LD(\hh)>\eps$. But in the
+realizable setting ERM is consistent, so this means some bad hypothesis must
+have empirical risk zero. Therefore
+\[
+  \{\LD(\hh)>\eps\}
+  \subseteq
+  \{\exists h\in B : \LS(h)=0\}.
+\]
+
+Taking probabilities gives
+\[
+  \Pr[\LD(\hh)>\eps]
+  \le
+  \Pr[\exists h\in B : \LS(h)=0].
+\]
+
+\subsection{One Bad Hypothesis}
+
+Fix $h\in B$. Since $h$ is bad,
+\[
+  \LD(h)>\eps.
+\]
+
+This means the probability that $h$ makes a mistake on one fresh sample is more
+than $\eps$. Therefore the probability that $h$ is correct on one sample is less
+than $1-\eps$.
+
+For $h$ to have zero empirical risk, it must be correct on all $m$ independent
+examples. Hence
+\[
+  \Pr[\LS(h)=0]
+  =
+  (1-\LD(h))^m
+  \le
+  (1-\eps)^m.
+\]
+
+Using the standard inequality $1-\eps\le e^{-\eps}$, we obtain
+\[
+  \Pr[\LS(h)=0]\le e^{-\eps m}.
+\]
+
+\subsection{Union Bound}
+
+Using the union bound over all bad hypotheses,
+\[
+\begin{aligned}
+  \Pr[\exists h\in B : \LS(h)=0]
+  &\le \sum_{h\in B}\Pr[\LS(h)=0] \\
+  &\le |B|e^{-\eps m} \\
+  &\le |\Hclass|e^{-\eps m}.
+\end{aligned}
+\]
+
+Thus
+\[
+  \Pr[\LD(\hh)>\eps]\le |\Hclass|e^{-\eps m}.
+\]
+
+\subsection{Sample Complexity}
+
+To make the failure probability at most $\delta$, it is enough to require
+\[
+  |\Hclass|e^{-\eps m}\le \delta.
+\]
+
+Taking logarithms:
+\[
+  \log|\Hclass|-\eps m\le \log\delta.
+\]
+
+Rearranging:
+\[
+  \eps m \ge \log|\Hclass|+\log\frac{1}{\delta}.
+\]
+
+Therefore it is enough that
+\[
+  m\ge
+  \frac{1}{\eps}
+  \left(
+    \log|\Hclass|+\log\frac{1}{\delta}
+  \right).
+\]
+
+\begin{theorem}[Realizable finite-class guarantee, informal]
+If $\Hclass$ is finite, the setting is realizable, and
+\[
+  m\ge
+  \frac{1}{\eps}
+  \left(
+    \log|\Hclass|+\log\frac{1}{\delta}
+  \right),
+\]
+then with probability at least $1-\delta$, every hypothesis in $\Hclass$ that is
+consistent with the sample has true risk at most $\eps$.
+\end{theorem}
+
+\subsection{Lean Status}
+
+In Lean, the probability-heavy realizable concentration theorem is stated as an
+explicit assumption:
+\[
+  \texttt{finiteClass\_realizable\_concentration}.
+\]
+
+The theorem wrapper is:
+\[
+  \texttt{realizable\_learning\_guarantee}.
+\]
+
+It is located in:
+\[
+  \texttt{LearningTheoryProject/Realizable.lean}.
+\]
+
+The Lean theorem does not reprove Hoeffding, the union bound, or the logarithmic
+sample complexity algebra. Instead, it formalizes the surrounding theorem shape
+using a named concentration assumption.
+
+\section{Agnostic Setting}
+
+\subsection{Assumption Removed}
+
+The agnostic setting removes the assumption that a perfect hypothesis exists.
+There may be no $h\in\Hclass$ with $\LD(h)=0$.
+
+Instead, define $\hstar$ to be a best hypothesis in $\Hclass$:
+\[
+  \hstar \in \arg\min_{h\in\Hclass}\LD(h).
+\]
+
+The goal is not perfection. The goal is to show that ERM performs almost as well
+as $\hstar$.
+
+\subsection{Uniform Convergence}
+
+The key deterministic assumption is uniform convergence:
+\[
+  \forall h\in\Hclass,\quad |\LD(h)-\LS(h)|\le \eps.
+\]
+
+This absolute-value statement gives two directed inequalities:
+\[
+  \LD(h)\le \LS(h)+\eps,
+\]
+and
+\[
+  \LS(h)\le \LD(h)+\eps.
+\]
+
+Lean represents this directly as two inequalities rather than as an absolute
+value. This is one example of Lean forcing a paper proof to become more
+explicit.
+
+\subsection{Deterministic Agnostic ERM Lemma}
+
+\begin{lemma}[Deterministic agnostic ERM guarantee]
+Assume uniform convergence and assume $\hh$ is an empirical risk minimizer. Then
+for any comparator $\hstar$,
+\[
+  \LD(\hh)\le \LD(\hstar)+2\eps.
+\]
+\end{lemma}
+
+\begin{proof}
+Start with the true risk of $\hh$. By uniform convergence applied to $\hh$,
+\[
+  \LD(\hh)\le \LS(\hh)+\eps.
+\]
+
+Since $\hh$ is an empirical risk minimizer,
+\[
+  \LS(\hh)\le \LS(\hstar).
+\]
+
+Adding $\eps$ to both sides gives
+\[
+  \LS(\hh)+\eps\le \LS(\hstar)+\eps.
+\]
+
+By uniform convergence applied to $\hstar$ in the other direction,
+\[
+  \LS(\hstar)\le \LD(\hstar)+\eps.
+\]
+
+Adding $\eps$ gives
+\[
+  \LS(\hstar)+\eps
+  \le
+  \LD(\hstar)+\eps+\eps.
+\]
+
+Combining the inequalities:
+\[
+\begin{aligned}
+  \LD(\hh)
+  &\le \LS(\hh)+\eps \\
+  &\le \LS(\hstar)+\eps \\
+  &\le \LD(\hstar)+\eps+\eps \\
+  &= \LD(\hstar)+2\eps.
+\end{aligned}
+\]
+
+Thus ERM is within $2\eps$ of the comparator hypothesis.
+\end{proof}
+
+The two $\eps$ terms come from applying uniform convergence twice: once for
+$\hh$ and once for $\hstar$.
+
+\subsection{Lean Status}
+
+This deterministic result is the strongest fully verified theorem in the
+project. In Lean it is named:
+\[
+  \texttt{agnostic\_erm\_deterministic}.
+\]
+
+It is located in:
+\[
+  \texttt{LearningTheoryProject/Agnostic.lean}.
+\]
+
+The Lean proof follows the same chain:
+\begin{itemize}[leftmargin=*]
+  \item apply uniform convergence to \texttt{hHat},
+  \item use the ERM inequality comparing \texttt{hHat} to \texttt{hStar},
+  \item add \texttt{eps} to both sides with \texttt{Nat.add\_le\_add\_right},
+  \item apply uniform convergence to \texttt{hStar},
+  \item rewrite associativity with \texttt{Nat.add\_assoc}.
+\end{itemize}
+
+\subsection{High-Probability Agnostic Bound}
+
+For a fixed hypothesis $h$, empirical risk is an average of independent
+zero-one random variables:
+\[
+  \ind[h(x_i)\ne y_i].
+\]
+
+Its expectation is the true risk:
+\[
+  \mathbb{E}[\LS(h)] = \LD(h).
+\]
+
+Hoeffding's inequality gives
+\[
+  \Pr\left[|\LS(h)-\LD(h)|>\eps\right]
+  \le
+  2e^{-2m\eps^2}.
+\]
+
+Using the union bound over $\Hclass$:
+\[
+\begin{aligned}
+  \Pr\left[
+    \exists h\in\Hclass :
+    |\LS(h)-\LD(h)|>\eps
+  \right]
+  &\le
+  \sum_{h\in\Hclass}
+  \Pr\left[|\LS(h)-\LD(h)|>\eps\right] \\
+  &\le
+  2|\Hclass|e^{-2m\eps^2}.
+\end{aligned}
+\]
+
+To make this failure probability at most $\delta$, require
+\[
+  2|\Hclass|e^{-2m\eps^2}\le \delta.
+\]
+
+Solving gives
+\[
+  m\ge
+  \frac{1}{2\eps^2}
+  \log\frac{2|\Hclass|}{\delta}.
+\]
+
+Therefore, with probability at least $1-\delta$,
+\[
+  \LD(\hh)
+  \le
+  \min_{h\in\Hclass}\LD(h)+2\eps.
+\]
+
+In Lean, the finite-class uniform convergence theorem is assumed as:
+\[
+  \texttt{finiteClass\_agnostic\_uniform\_convergence}.
+\]
+
+The high-probability wrapper theorem is:
+\[
+  \texttt{agnostic\_high\_probability\_guarantee}.
+\]
+
+\section{Why the Rates Differ}
+
+The realizable rate is:
+\[
+  m =
+  O\left(
+    \frac{\log|\Hclass|+\log(1/\delta)}{\eps}
+  \right).
+\]
+
+The agnostic rate is:
+\[
+  m =
+  O\left(
+    \frac{\log|\Hclass|+\log(1/\delta)}{\eps^2}
+  \right).
+\]
+
+The difference comes from the type of event being bounded.
+
+In the realizable setting, the proof asks whether a bad hypothesis makes zero
+mistakes on all samples. That probability decays like
+\[
+  e^{-m\eps}.
+\]
+
+In the agnostic setting, the proof asks whether empirical averages are close to
+expectations for all hypotheses. Hoeffding's inequality gives decay like
+\[
+  e^{-m\eps^2}.
+\]
+
+Solving these exponential bounds for $m$ gives the different rates.
+
+\section{Lean Formalization}
+
+\subsection{Design Choice: Abstract Risk}
+
+The Lean project uses:
+\[
+  \texttt{abbrev Risk := Nat}.
+\]
+
+This is an abstraction. It does not claim that risks are literally natural
+numbers. The purpose is to focus on the deterministic order reasoning needed for
+the ERM theorem while avoiding a full formalization of real-valued probability.
+
+\subsection{Main Definitions}
+
+The core structure is:
+\[
+  \texttt{LearningProblem Hypothesis}.
+\]
+
+It contains:
+\begin{itemize}[leftmargin=*]
+  \item \texttt{trueRisk : Hypothesis -> Risk},
+  \item \texttt{empiricalRisk : Hypothesis -> Risk},
+  \item \texttt{classMember : Hypothesis -> Prop},
+  \item \texttt{classSize : Nat}.
+\end{itemize}
+
+The main predicates are:
+\begin{itemize}[leftmargin=*]
+  \item \texttt{InClass},
+  \item \texttt{NonemptyClass},
+  \item \texttt{Consistent},
+  \item \texttt{BadHypothesis},
+  \item \texttt{Realizable},
+  \item \texttt{UniformConvergence},
+  \item \texttt{EmpiricalRiskMinimizer},
+  \item \texttt{TrueRiskOptimal}.
+\end{itemize}
+
+\subsection{Lean Theorem Interfaces and Assumptions}
+
+The Lean project distinguishes ordinary definitions, proved deterministic
+lemmas, and assumed probability interfaces.
+
+\paragraph{Definitions.}
+The following objects are definitions, not assumptions:
+\begin{itemize}[leftmargin=*]
+  \item \texttt{Consistent P h}: the empirical risk of \texttt{h} is zero.
+  \item \texttt{BadHypothesis P eps h}: the true risk of \texttt{h} is greater
+  than \texttt{eps}.
+  \item \texttt{Realizable P}: there exists a class member with zero true risk.
+  \item \texttt{UniformConvergence P eps}: both directed risk inequalities hold
+  for every hypothesis.
+  \item \texttt{EmpiricalRiskMinimizer P hHat}: \texttt{hHat} has empirical risk
+  no larger than any comparator.
+  \item \texttt{TrueRiskOptimal P hStar}: \texttt{hStar} has true risk no larger
+  than any comparator.
+\end{itemize}
+
+\paragraph{Proved deterministic helper lemmas.}
+The following are proved directly from definitions:
+\begin{itemize}[leftmargin=*]
+  \item \texttt{uniform\_true\_le\_empirical\_plus},
+  \item \texttt{uniform\_empirical\_le\_true\_plus},
+  \item \texttt{consistent\_empirical\_zero},
+  \item \texttt{class\_member\_iff\_inClass}.
+\end{itemize}
+
+\paragraph{Assumed probability interfaces.}
+The following are axioms in \texttt{AssumedResults.lean}:
+\begin{itemize}[leftmargin=*]
+  \item \texttt{HighProbabilityEvent}: represents an event holding with
+  probability at least $1-\delta$.
+  \item \texttt{highProbability\_mono}: if event $p$ implies event $q$, then a
+  high-probability guarantee for $p$ gives a high-probability guarantee for $q$.
+  \item \texttt{finiteClass\_realizable\_concentration}: the assumed finite-class
+  realizable concentration theorem.
+  \item \texttt{finiteClass\_agnostic\_uniform\_convergence}: the assumed
+  finite-class agnostic uniform convergence theorem.
+\end{itemize}
+
+\paragraph{Main proved theorem.}
+The theorem \texttt{agnostic\_erm\_deterministic} is fully proved in Lean. It
+uses no probability axiom directly; it uses only uniform convergence, ERM, and
+elementary natural-number order reasoning.
+
+\paragraph{Wrapper theorems.}
+The theorems \texttt{realizable\_learning\_guarantee} and
+\texttt{agnostic\_high\_probability\_guarantee} compile in Lean but depend on
+the assumed concentration interfaces. They are included to show the final
+learning-theory theorem shape while keeping the probability boundary explicit.
+
+\subsection{Formalization Boundary}
+
+The project separates proved results from assumed results.
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.42\textwidth}
+                  >{\raggedright\arraybackslash}p{0.48\textwidth}}
+\toprule
+\textbf{Component} & \textbf{Status} \\
+\midrule
+\endhead
+Basic learning definitions & Formalized in Lean. \\
+Consistency, realizability, ERM, uniform convergence & Formalized in Lean. \\
+Deterministic agnostic ERM theorem & Fully proved in Lean. \\
+Agnostic high-probability wrapper & Proved using an assumed concentration theorem. \\
+Realizable learning guarantee wrapper & Proved using an assumed concentration theorem. \\
+Hoeffding inequality & Assumed/scoped out. \\
+Finite-class probability union bound & Assumed/scoped out. \\
+Exact logarithmic sample complexity in Lean & Explained mathematically, not fully formalized. \\
+Full MA-LoT system & Not implemented; workflow is MA-LoT-inspired. \\
+\bottomrule
+\end{longtable}
+
+\section{Repository Layout}
+
+The repository is organized so that the Lean code, mathematical notes,
+presentation materials, AI workflow artifacts, and final report are separated.
+
+\subsection{Lean Files}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.36\textwidth}
+                  >{\raggedright\arraybackslash}p{0.54\textwidth}}
+\toprule
+\normalfont\textbf{File} & \textbf{Purpose} \\
+\midrule
+\endhead
+\small LearningTheoryProject/BasicDefinitions.lean
+& Defines the abstract learning vocabulary: risk, classifiers, learning problems,
+class membership, consistency, realizability, ERM, and uniform convergence. \\
+\small LearningTheoryProject/AssumedResults.lean
+& States the high-probability interface and assumed concentration results. \\
+\small LearningTheoryProject/Realizable.lean
+& Contains helper lemmas and the realizable theorem wrapper. \\
+\small LearningTheoryProject/Agnostic.lean
+& Contains the fully proved deterministic agnostic ERM theorem and the
+high-probability agnostic wrapper. \\
+\small LearningTheoryProject/DemoExamples.lean
+& Contains small examples used in the live presentation. \\
+\small LearningTheoryProject/MainTheorem.lean
+& Imports the complete formalization and describes the main results. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Notes and Proof Explanation}
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{notes/math\_overview.md}: overview of the learning problem.
+  \item \texttt{notes/proof\_realizable.md}: realizable proof explanation.
+  \item \texttt{notes/proof\_agnostic.md}: agnostic proof explanation.
+  \item \texttt{notes/lean\_translation\_notes.md}: paper proof to Lean translation notes.
+\end{itemize}
+
+\subsection{Presentation Materials}
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{presentation/final\_slides.pptx}: final delivered slide deck.
+  \item \texttt{presentation/speaker\_notes.md}: slide-by-slide speaking script.
+  \item \texttt{presentation/annotated\_proof\_walkthrough.md}: Lean proof next to human explanation.
+  \item \texttt{presentation/paper\_vs\_lean\_table.md}: informal proof phrases versus explicit Lean requirements.
+  \item \texttt{presentation/proof\_dependency\_graph.md}: dependency diagram for definitions, assumptions, and theorems.
+  \item \texttt{presentation/proof\_pipeline\_diagram.md}: proof generation and repair workflow.
+  \item \texttt{presentation/visual\_theorem\_flow.md}: theorem-flow explanation.
+\end{itemize}
+
+\section{MA-LoT-Inspired Proof Repair Workflow}
+
+\subsection{What MA-LoT Contributes Conceptually}
+
+MA-LoT motivates a theorem-proving workflow where natural-language reasoning,
+Lean verification, and proof repair interact. The important lesson for this
+project is that an LLM-generated proof is not trusted directly. It is checked by
+Lean, and Lean's feedback is used to guide correction.
+
+This project is explicitly MA-LoT-inspired. It does not implement the full
+MA-LoT system.
+
+\subsection{Adapted Workflow}
+
+The adapted workflow is:
+
+\begin{center}
+\begin{tabular}{c}
+English theorem prompt \\
+$\downarrow$ \\
+Codex proof attempt and Claude proof attempt \\
+$\downarrow$ \\
+Lean verifier feedback \\
+$\downarrow$ \\
+repair iteration \\
+$\downarrow$ \\
+comparison and reconciliation \\
+$\downarrow$ \\
+verified Lean theorem \\
+$\downarrow$ \\
+human-readable explanation
+\end{tabular}
+\end{center}
+
+\subsection{Why This Matters}
+
+LLMs can generate plausible-looking proofs that are not correct Lean proofs.
+Lean catches errors such as:
+\begin{itemize}[leftmargin=*]
+  \item missing assumptions,
+  \item wrong inequality directions,
+  \item hallucinated lemma names,
+  \item arithmetic gaps,
+  \item tactic failures,
+  \item theorem statements that are too informal.
+\end{itemize}
+
+The workflow turns those errors into repair data.
+
+\subsection{AI Collaboration Reflection}
+
+Across the project, AI assistance was most useful for proposing proof structure,
+drafting explanatory text, and producing alternative Lean attempts that could be
+checked against the verifier. The collaboration evolved in three stages.
+
+\paragraph{Planning stage.}
+AI assistance helped turn the broad project idea into a scoped plan: formalize
+finite-class learning, prioritize the deterministic agnostic theorem, isolate
+probability facts as assumptions, and build explanation artifacts in parallel
+with Lean code.
+
+\paragraph{Proof stage.}
+AI-generated proof attempts were useful as drafts, but not as final authority.
+The most important rule was that no proof was treated as correct until Lean
+accepted it. The AI was delegated proof-attempt generation, proof repair
+suggestions, and explanation drafting. Lean was the verifier.
+
+\paragraph{Presentation stage.}
+AI assistance helped convert formal Lean statements into human-readable proof
+walkthroughs, diagrams, speaker notes, and the final report. This was especially
+useful for explaining what Lean forced to become explicit: directed inequalities,
+named assumptions, and arithmetic rewrites.
+
+The workflow also showed where AI can mislead. It sometimes used theorem names
+that did not exist, treated a conjunction as if it were a single inequality,
+tried automation that could not see the right constraints, or skipped arithmetic
+steps that a paper proof would call ``obvious.'' These failures became useful
+only after Lean exposed them and they were logged, diagnosed, and repaired.
+
+\section{Multi-Model Comparison Workflow}
+
+\subsection{Blind Generation}
+
+Codex and Claude are given the same theorem prompt:
+\[
+  \texttt{theorem\_prompts/agnostic\_erm\_theorem.md}.
+\]
+
+The final verified Lean proof is not given to them during blind generation. This
+prevents the models from merely copying the final proof and makes the comparison
+more meaningful.
+
+\subsection{Generated Proof Artifacts}
+
+The generated files are stored in:
+\begin{itemize}[leftmargin=*]
+  \item \texttt{generated\_proofs/codex/agnostic\_attempt\_1.lean},
+  \item \texttt{generated\_proofs/codex/agnostic\_attempt\_2\_repaired.lean},
+  \item \texttt{generated\_proofs/codex/simplified\_attempt.lean},
+  \item \texttt{generated\_proofs/claude/agnostic\_attempt\_1.lean},
+  \item \texttt{generated\_proofs/claude/agnostic\_attempt\_2\_repaired.lean},
+  \item \texttt{generated\_proofs/claude/simplified\_attempt.lean}.
+\end{itemize}
+
+\subsection{Comparison Script}
+
+The script
+\[
+  \texttt{multi\_model\_workflow/run\_comparison.py}
+\]
+checks each generated file with Lean and records structural features.
+
+It compares:
+\begin{itemize}[leftmargin=*]
+  \item whether the file compiles,
+  \item Lean's exit code,
+  \item verifier error output,
+  \item line count,
+  \item SHA hash prefix,
+  \item whether the proof uses \texttt{calc},
+  \item whether the proof uses \texttt{omega},
+  \item whether it uses \texttt{Nat.add\_le\_add\_right},
+  \item whether it uses \texttt{Nat.add\_assoc},
+  \item whether it calls the main theorem directly,
+  \item whether it extracts conjunction directions using \texttt{.left} or \texttt{.right}.
+\end{itemize}
+
+The comparison is not a deep semantic equivalence checker. Lean verifies whether
+each proof checks against its theorem statement. The script then compares proof
+structure and usefulness for explanation or simplification.
+
+\subsection{Repair and Simplification}
+
+The comparison script generates:
+\begin{itemize}[leftmargin=*]
+  \item \texttt{multi\_model\_workflow/comparison\_report.md},
+  \item \texttt{multi\_model\_workflow/repair\_recommendations\_for\_models.md}.
+\end{itemize}
+
+The repair recommendations tell Codex and Claude what to borrow from each other.
+For example:
+\begin{itemize}[leftmargin=*]
+  \item Codex should explicitly extract uniform convergence directions.
+  \item Claude should avoid relying on \texttt{omega} for abstract
+  \texttt{Nat}-valued risk functions.
+  \item Both should preserve a readable \texttt{calc} chain for explanation.
+\end{itemize}
+
+Simplification is only accepted after Lean verification. A shorter proof is not
+kept merely because it looks cleaner; it must still pass \texttt{lake build}.
+
+\subsection{How Comparison Prevents Shortcuts}
+
+The comparison workflow prevents shortcut behavior in three ways.
+
+\begin{enumerate}[leftmargin=*]
+  \item Both models start from the same theorem prompt, not from the final proof.
+  \item Lean checks whether each generated proof actually compiles.
+  \item The comparison exposes missing assumptions, hallucinated lemmas, tactic
+  failures, and proofs that only sound correct in English.
+\end{enumerate}
+
+Thus, the LLM is a proof assistant, but Lean remains the verifier.
+
+\section{Proof Repair Case Study}
+
+The agnostic ERM theorem was the main repair case study.
+
+\subsection{Failure Pattern 1: Uniform Convergence Treated Too Informally}
+
+Informally, the proof says ``by uniform convergence.'' In Lean, uniform
+convergence is a conjunction with two directed inequalities. A failed proof
+attempt tried to use the whole uniform convergence hypothesis directly.
+
+The repair was to extract the needed direction:
+\[
+  \texttt{(hUC hHat).left}
+\]
+or
+\[
+  \texttt{(hUC hStar).right}.
+\]
+
+\subsection{Failure Pattern 2: ERM Used Before Matching the Goal}
+
+ERM gives:
+\[
+  \LS(\hh)\le \LS(\hstar).
+\]
+
+But the proof goal needs:
+\[
+  \LS(\hh)+\eps\le \LS(\hstar)+\eps.
+\]
+
+The repair was:
+\[
+  \texttt{Nat.add\_le\_add\_right hERMStar eps}.
+\]
+
+\subsection{Failure Pattern 3: Arithmetic Hidden by ``Rearranging''}
+
+The paper proof says the result follows by rearranging. Lean requires the exact
+final expression:
+\[
+  \texttt{P.trueRisk hStar + (eps + eps)}.
+\]
+
+The repair used:
+\[
+  \texttt{rw [Nat.add\_assoc]}.
+\]
+
+\section{Verification and Reproducibility}
+
+The project was verified with Lean 4.29.1 and Lake 5.0.0.
+
+\subsection{Build Command}
+
+To verify the Lean project:
+
+\begin{verbatim}
+lake build
+\end{verbatim}
+
+Expected output:
+
+\begin{verbatim}
+Build completed successfully (16 jobs).
+\end{verbatim}
+
+\subsection{Comparison Command}
+
+To reproduce the multi-model comparison:
+
+\begin{verbatim}
+python multi_model_workflow/run_comparison.py
+\end{verbatim}
+
+Expected output:
+
+\begin{verbatim}
+Wrote multi_model_workflow\comparison_report.md
+Wrote multi_model_workflow\repair_recommendations_for_models.md
+\end{verbatim}
+
+\section{Limitations}
+
+\begin{itemize}[leftmargin=*]
+  \item Risks are abstract \texttt{Nat} values, not real-valued probabilities.
+  \item Hoeffding's inequality is not formalized in Lean.
+  \item The finite-class probability union bound is not formalized in Lean.
+  \item Exact logarithmic sample complexity bounds are proved in the mathematical
+  explanation but represented abstractly in Lean.
+  \item The project is MA-LoT-inspired but does not implement the full MA-LoT
+  framework.
+  \item The comparison script performs verification and structural comparison,
+  not general semantic equivalence checking between arbitrary Lean files.
+\end{itemize}
+
+\section{Future Work}
+
+Future extensions could:
+\begin{itemize}[leftmargin=*]
+  \item replace assumed concentration facts with Mathlib probability theorems,
+  \item use real-valued risks,
+  \item formalize Hoeffding's inequality,
+  \item formalize exact sample complexity algebra in Lean,
+  \item automate more of the MA-LoT-style repair loop,
+  \item integrate an MA-LoT-related model such as a LoT-Solver model as a proof
+  generation or correction agent,
+  \item evaluate more theorem prompts with the same comparison pipeline.
+\end{itemize}
+
+\section{Conclusion}
+
+This project formalizes the deterministic core of finite-class learning
+guarantees in Lean 4 and makes the probability boundary explicit. The
+deterministic agnostic ERM theorem is fully verified. The realizable and
+agnostic high-probability results are represented using clearly named assumed
+concentration results.
+
+The project also contributes an MA-LoT-inspired proof repair study. Codex and
+Claude produce proof attempts, Lean verifies them, errors are logged, repairs
+are made, attempts are compared, and the final verified proof is explained for a
+human reader.
+
+The final result is both a Lean formalization and a small study of
+AI-assisted theorem proving, proof repair, and proof explainability.
+
+\appendix
+
+\section{Appendix A: File Index}
+
+\subsection{Core Lean Formalization}
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{LearningTheoryProject/BasicDefinitions.lean}
+  \item \texttt{LearningTheoryProject/AssumedResults.lean}
+  \item \texttt{LearningTheoryProject/Realizable.lean}
+  \item \texttt{LearningTheoryProject/Agnostic.lean}
+  \item \texttt{LearningTheoryProject/DemoExamples.lean}
+  \item \texttt{LearningTheoryProject/MainTheorem.lean}
+\end{itemize}
+
+\subsection{Mathematical Notes}
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{notes/math\_overview.md}
+  \item \texttt{notes/proof\_realizable.md}
+  \item \texttt{notes/proof\_agnostic.md}
+  \item \texttt{notes/lean\_translation\_notes.md}
+\end{itemize}
+
+\subsection{MA-LoT-Inspired Workflow}
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{malot\_workflow/README.md}
+  \item \texttt{malot\_workflow/malot\_overview.md}
+  \item \texttt{malot\_workflow/proof\_attempt\_log.md}
+  \item \texttt{malot\_workflow/verifier\_feedback\_log.md}
+  \item \texttt{malot\_workflow/repair\_iterations.md}
+  \item \texttt{malot\_workflow/success\_failure\_table.md}
+  \item \texttt{malot\_workflow/pattern\_analysis.md}
+  \item \texttt{malot\_workflow/agnostic\_repair\_case\_study.md}
+  \item \texttt{malot\_workflow/final\_reflection.md}
+\end{itemize}
+
+\subsection{Multi-Model Workflow}
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{theorem\_prompts/agnostic\_erm\_theorem.md}
+  \item \texttt{theorem\_prompts/realizable\_theorem.md}
+  \item \texttt{theorem\_prompts/simplification\_prompt.md}
+  \item \texttt{generated\_proofs/codex/}
+  \item \texttt{generated\_proofs/claude/}
+  \item \texttt{multi\_model\_workflow/run\_comparison.py}
+  \item \texttt{multi\_model\_workflow/comparison\_report.md}
+  \item \texttt{multi\_model\_workflow/repair\_recommendations\_for\_models.md}
+  \item \texttt{multi\_model\_workflow/codex\_vs\_claude\_comparison.md}
+  \item \texttt{multi\_model\_workflow/consensus\_pipeline.md}
+  \item \texttt{multi\_model\_workflow/reconciliation\_notes.md}
+  \item \texttt{multi\_model\_workflow/semantic\_difference\_cases.md}
+\end{itemize}
+
+\subsection{Proof Refactoring}
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{proof\_refactoring/bloated\_vs\_simplified.md}
+  \item \texttt{proof\_refactoring/verified\_refactors.md}
+  \item \texttt{proof\_refactoring/failed\_simplifications.md}
+\end{itemize}
+
+\subsection{Presentation and Explainability}
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{presentation/final\_slides.pptx}
+  \item \texttt{presentation/speaker\_notes.md}
+  \item \texttt{presentation/annotated\_proof\_walkthrough.md}
+  \item \texttt{presentation/paper\_vs\_lean\_table.md}
+  \item \texttt{presentation/proof\_dependency\_graph.md}
+  \item \texttt{presentation/proof\_pipeline\_diagram.md}
+  \item \texttt{presentation/visual\_theorem\_flow.md}
+  \item \texttt{presentation/final\_demo\_examples.md}
+  \item \texttt{presentation/codex\_vs\_claude\_table.md}
+\end{itemize}
+
+\subsection{Final Submission Files}
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{README.md}
+  \item \texttt{final\_report/final\_writeup.tex}
+  \item \texttt{final\_report/final\_writeup.md}
+  \item \texttt{final\_report/submission\_checklist.md}
+\end{itemize}
+
+\section{Appendix B: Main Lean Theorem Names}
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{uniform\_true\_le\_empirical\_plus}
+  \item \texttt{uniform\_empirical\_le\_true\_plus}
+  \item \texttt{realizable\_learning\_guarantee}
+  \item \texttt{agnostic\_erm\_deterministic}
+  \item \texttt{agnostic\_erm\_against\_optimal}
+  \item \texttt{agnostic\_high\_probability\_guarantee}
+\end{itemize}
+
+\section{Appendix C: Final Submission Checklist}
+
+Before submission:
+
+\begin{enumerate}[leftmargin=*]
+  \item Run \texttt{lake build}.
+  \item Run \texttt{python multi\_model\_workflow/run\_comparison.py}.
+  \item Confirm \texttt{presentation/final\_slides.pptx} is present.
+  \item Confirm \texttt{final\_report/final\_writeup.tex} is present.
+  \item Compile \texttt{final\_writeup.tex} to PDF if the submission requires PDF.
+  \item Confirm no PowerPoint lock files are included. These usually begin with a tilde-dollar prefix.
+  \item Commit or upload all final artifacts.
+\end{enumerate}
+
+\end{document}

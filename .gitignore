@@ -9,3 +9,5 @@
 *.dll
 *.dylib
 *.exe
+presentation/final_slides_src/slide-*.mjs
+presentation/final_slides_src/slide_*.mjs

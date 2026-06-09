@@ -60,9 +60,33 @@ generated_proofs/claude/agnostic_attempt_1.lean:19:45: error: omega could not pr
 No usable constraints found. You may need to unfold definitions so `omega` can see linear arithmetic facts about `Nat` and `Int`, which may also involve multiplication, division, and modular remainder by constants.
 ```
 
+## Reconciliation Ranking
+
+| Model | Stage | Compiles? | Score | Main reason |
+| --- | --- | --- | ---: | --- |
+| Claude | Simplified attempt | Yes | 100 | readable inequality chain; explicit Nat arithmetic; explicit UC directions |
+| Claude | Repaired attempt | Yes | 95 | readable inequality chain; explicit Nat arithmetic; explicit UC directions |
+| Codex | Repaired attempt | Yes | 80 | readable inequality chain; explicit Nat arithmetic |
+| Codex | Simplified attempt | Yes | 75 | short verified refactor |
+| Codex | Blind attempt | No | 0 | Fails; missing a uniform-convergence direction or arithmetic lift. |
+| Claude | Blind attempt | No | 0 | Fails; automation cannot see the abstract inequalities. |
+
+## Consensus Recommendation
+
+- Best explanatory repaired proof: `generated_proofs/claude/agnostic_attempt_2_repaired.lean` (Claude, score 95).
+- Best verified simplification/refactor: `generated_proofs/claude/simplified_attempt.lean` (Claude, score 100).
+- Use a repaired proof for explanation, because it exposes the proof steps.
+- Use a simplified proof only after the main theorem is verified, because direct theorem calls can hide the reasoning.
+
+## Cross-Model Repair Suggestions
+
+- Codex blind attempt should borrow Claude's explicit extraction of uniform-convergence directions with `.left` and `.right`.
+- Claude blind attempt should borrow Codex's explicit arithmetic repair strategy: `Nat.add_le_add_right` and `Nat.add_assoc` instead of `omega`.
+- The reconciled proof should keep the readable `calc` chain, show the three mathematical inequalities, and use automation only after the proof structure is clear.
 ## Interpretation
 
 - Blind attempts are allowed to fail; their failures are the verifier feedback used for repair.
 - Repaired and simplified attempts must compile before they are treated as verified artifacts.
 - Hashes and line counts catch exact-file differences; structural features capture proof-strategy differences.
 - Semantic equivalence is approximated here by matching theorem type plus successful Lean verification.
+- Model-facing repair instructions are generated separately in `multi_model_workflow\repair_recommendations_for_models.md`.
